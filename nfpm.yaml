@@ -1,0 +1,77 @@
+# nfpm config: nerdctl-full tarball -> Ubuntu .deb
+# 直接ではなく build.sh 経由で使う
+#   VERSION / ARCH : 環境変数として nfpm が展開
+#   ${STAGING}     : build.sh が sed で置換 (contents.src は nfpm が展開しないため)
+name: nerdctl-full
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1"
+section: admin
+priority: optional
+maintainer: "nerdctl-deb packager <company@ilks.jp>"
+description: |
+  nerdctl full bundle (nerdctl + containerd + runc + BuildKit + CNI plugins, etc.)
+  installed under /opt/nerdctl.
+vendor: containerd project (repackaged)
+homepage: https://github.com/containerd/nerdctl
+license: Apache-2.0
+
+depends:
+  - iptables
+recommends:
+  - uidmap
+  - dbus-user-session
+suggests:
+  - fuse3
+# containerd.service / runc 等とユニット名・役割が衝突するため
+conflicts:
+  - containerd
+  - containerd.io
+  - docker.io
+  - docker-ce
+replaces:
+  - containerd
+  - containerd.io
+
+contents:
+  # tarball 本体をまるごと /opt/nerdctl へ
+  - src: ${STAGING}/opt/nerdctl
+    dst: /opt/nerdctl
+    type: tree
+
+  # systemd ユニット (パスを /opt/nerdctl に書き換え済み)
+  - src: ${STAGING}/systemd/containerd.service
+    dst: /usr/lib/systemd/system/containerd.service
+    file_info: { mode: 0644 }
+  - src: ${STAGING}/systemd/buildkit.service
+    dst: /usr/lib/systemd/system/buildkit.service
+    file_info: { mode: 0644 }
+  - src: ${STAGING}/systemd/stargz-snapshotter.service
+    dst: /usr/lib/systemd/system/stargz-snapshotter.service
+    file_info: { mode: 0644 }
+
+  # nerdctl 設定 (CNI プラグインの場所を指定)
+  - src: ./packaging/nerdctl.toml
+    dst: /etc/nerdctl/nerdctl.toml
+    type: config|noreplace
+    file_info: { mode: 0644 }
+
+  # 最小限のシンボリックリンク
+  #  - nerdctl  : 本体
+  #  - buildctl : `nerdctl build` が PATH から探す
+  #  - ctr      : containerd のデバッグ用
+  - src: /opt/nerdctl/bin/nerdctl
+    dst: /usr/bin/nerdctl
+    type: symlink
+  - src: /opt/nerdctl/bin/buildctl
+    dst: /usr/bin/buildctl
+    type: symlink
+  - src: /opt/nerdctl/bin/ctr
+    dst: /usr/bin/ctr
+    type: symlink
+
+scripts:
+  postinstall: ./packaging/scripts/postinstall.sh
+  preremove: ./packaging/scripts/preremove.sh
+  postremove: ./packaging/scripts/postremove.sh
