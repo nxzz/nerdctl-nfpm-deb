@@ -161,3 +161,11 @@ rootlesskit rm -rf ~/.local/share/containerd ~/.local/share/buildkit   # デー�
     ├── nerdctl.toml            # /etc/nerdctl/nerdctl.toml
     └── scripts/                # postinstall / preremove / postremove
 ```
+
+## リリース (CI/CD)
+
+`v<nerdctl のバージョン>` 形式のタグを push すると GitHub Actions が動き、そのバージョンの `.deb` (amd64 / arm64) をビルドして GitHub Release に添付します。
+
+```sh
+git tag v2.4.1 && git push origin v2.4.1
+```
